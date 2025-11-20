@@ -1,0 +1,11 @@
+Spend Category,Emission Factor (kg CO2e/₹1000),Evidence Source,Variability / Notes
+Food and Groceries,7 to 15,NSSO-linked supply chain studies; household footprint,"Varies by diet (higher for meat, lower for cereals/veg)"
+Housing and Utilities,10 to 20 ,India GHG inventory; energy spend research,Region/energy mix; urban households often higher
+"Transport (fuel, public, vehicle)",20 to 40 ,Transport emission factors; fuel use studies,"Vehicle type, efficiency, usage frequency"
+Clothing and Footwear,5 to 10 ,Input-output modelling; household expenditure,"Imported goods, luxury items on higher side"
+Household Goods & Appliances,5 to 10 ,Consumption and durable goods footprint studies,"Tech products, large furniture slightly above mean"
+Healthcare & Personal Care,3 to 7,Service-based emission inventories; household study,Pharmaceutics and hospital services drive upper bound
+Education & Communication,1 to 5,Expenditure/emission correlation (services),"Digital/online activity lower, sector growing emissions"
+Recreation & Leisure,2 to 8 ,Indian consumption/emission category analysis,Travel (air/car) pushes value up significantly
+Financial Services & Insurance,1 to 3 ,Household indirect emissions; admin activities,Largely administrative; negligible direct emissions
+Miscellaneous Goods & Services,2 to 6 ,"Retail/service studies; gifts, minor purchases",Wide spread depending on nature of product/service
