@@ -124,24 +124,26 @@
             font-weight: 500;
         }
         
-        /* Node colors */
+        /* Node colors - Updated for 9 nodes */
         .node-1 { border-color: #2196f3; }
         .node-2 { border-color: #ff9800; }
         .node-3 { border-color: #e91e63; }
-        .node-4 { border-color: #4caf50; }
-        .node-5 { border-color: #ff9800; }
+        .node-4 { border-color: #ff5722; }
+        .node-5 { border-color: #4caf50; }
         .node-6 { border-color: #9c27b0; }
         .node-7 { border-color: #00bcd4; }
         .node-8 { border-color: #ffc107; }
+        .node-9 { border-color: #795548; }
         
         .node-1 .node-number { background: #2196f3; }
         .node-2 .node-number { background: #ff9800; }
         .node-3 .node-number { background: #e91e63; }
-        .node-4 .node-number { background: #4caf50; }
-        .node-5 .node-number { background: #ff9800; }
+        .node-4 .node-number { background: #ff5722; }
+        .node-5 .node-number { background: #4caf50; }
         .node-6 .node-number { background: #9c27b0; }
         .node-7 .node-number { background: #00bcd4; }
         .node-8 .node-number { background: #ffc107; }
+        .node-9 .node-number { background: #795548; }
         
         .arrow-row {
             display: flex;
@@ -152,6 +154,72 @@
         .arrow {
             font-size: 2rem;
             color: #2e7d32;
+        }
+        
+        /* High-value transaction section */
+        .high-value-section {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 3px solid #ff5722;
+            background: linear-gradient(145deg, #fff3e0, #ffe0b2);
+            border-radius: 15px;
+            padding: 30px;
+        }
+        
+        .high-value-title {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #333;
+        }
+        
+        .high-value-title h3 {
+            font-size: 1.5rem;
+            color: #ff5722;
+            margin-bottom: 5px;
+        }
+        
+        .high-value-flow {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+        
+        .high-value-node {
+            background: linear-gradient(145deg, #ffebee, #ffcdd2);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid #ff5722;
+            position: relative;
+        }
+        
+        .high-value-node .node-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .high-value-node .node-title {
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            color: #d32f2f;
+        }
+        
+        .high-value-node .node-desc {
+            font-size: 0.75rem;
+            color: #666;
+            line-height: 1.3;
+            margin-bottom: 8px;
+        }
+        
+        .node-recommendation {
+            margin-top: 8px;
+            padding: 4px 8px;
+            background: #ff5722;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 500;
         }
         
         .categories-section {
@@ -249,6 +317,9 @@
             .features-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+            .high-value-flow {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
         
         @media (max-width: 768px) {
@@ -259,6 +330,9 @@
                 grid-template-columns: repeat(2, 1fr);
             }
             .features-grid {
+                grid-template-columns: 1fr;
+            }
+            .high-value-flow {
                 grid-template-columns: 1fr;
             }
         }
@@ -273,7 +347,7 @@
         
         <div class="flow-container">
             <div class="flow-title">
-                <h2>8-Node Processing Pipeline</h2>
+                <h2>9-Node Processing Pipeline</h2>
             </div>
             
             <!-- First Row: Nodes 1-4 -->
@@ -304,10 +378,10 @@
                 
                 <div class="node node-4">
                     <div class="node-number">4</div>
-                    <div class="node-icon">🏷️</div>
-                    <div class="node-title">Rule Categorize</div>
-                    <div class="node-desc">Pattern-match 80% of transactions</div>
-                    <div class="node-tech">200+ Patterns</div>
+                    <div class="node-icon">💰</div>
+                    <div class="node-title">Filter High-Value</div>
+                    <div class="node-desc">Exclude transactions ≥₹50,000 from spend-based analysis</div>
+                    <div class="node-tech">Threshold Filter</div>
                 </div>
             </div>
             
@@ -319,34 +393,90 @@
             <div class="flow-grid">
                 <div class="node node-5">
                     <div class="node-number">5</div>
+                    <div class="node-icon">🏷️</div>
+                    <div class="node-title">Rule Categorize</div>
+                    <div class="node-desc">Pattern-match 80% of regular transactions</div>
+                    <div class="node-tech">200+ Patterns</div>
+                </div>
+                
+                <div class="node node-6">
+                    <div class="node-number">6</div>
                     <div class="node-icon">🤖</div>
                     <div class="node-title">LLM Categorize</div>
                     <div class="node-desc">AI categorizes remaining 20%</div>
                     <div class="node-tech">Anthropic/Groq</div>
                 </div>
                 
-                <div class="node node-6">
-                    <div class="node-number">6</div>
+                <div class="node node-7">
+                    <div class="node-number">7</div>
                     <div class="node-icon">🌍</div>
                     <div class="node-title">Estimate Carbon</div>
                     <div class="node-desc">Calculate CO2e using emission factors</div>
                     <div class="node-tech">NSSO Data</div>
                 </div>
                 
-                <div class="node node-7">
-                    <div class="node-number">7</div>
-                    <div class="node-icon">📊</div>
-                    <div class="node-title">Aggregate Results</div>
-                    <div class="node-desc">Sum totals by category & month</div>
-                    <div class="node-tech">Data Processing</div>
-                </div>
-                
                 <div class="node node-8">
                     <div class="node-number">8</div>
+                    <div class="node-icon">📊</div>
+                    <div class="node-title">Aggregate Results</div>
+                    <div class="node-desc">Sum totals by category & week</div>
+                    <div class="node-tech">Data Processing</div>
+                </div>
+            </div>
+            
+            <div class="arrow-row">
+                <span class="arrow">⬇️</span>
+            </div>
+            
+            <!-- Third Row: Node 9 -->
+            <div class="flow-grid" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                <div></div>
+                <div class="node node-9">
+                    <div class="node-number">9</div>
                     <div class="node-icon">💡</div>
                     <div class="node-title">Generate Insights</div>
-                    <div class="node-desc">AI-powered recommendations</div>
+                    <div class="node-desc">AI-powered recommendations & timeline analysis</div>
                     <div class="node-tech">LLM Analysis</div>
+                </div>
+                <div></div>
+                <div></div>
+            </div>
+            
+            <!-- High-Value Branch -->
+            <div class="high-value-section">
+                <div class="high-value-title">
+                    <h3>⚠️ High-Value Transaction Path (≥₹50,000)</h3>
+                    <p style="font-size: 0.8rem; color: #666; margin-top: 5px;">Excluded from spend-based analysis - requires activity-based estimation</p>
+                </div>
+                
+                <div class="high-value-flow">
+                    <div class="high-value-node">
+                        <div class="node-icon">💻</div>
+                        <div class="node-title">Electronics</div>
+                        <div class="node-desc">₹50K laptop → ~300-400 kg CO2e</div>
+                        <div class="node-recommendation">Use product LCA data</div>
+                    </div>
+                    
+                    <div class="high-value-node">
+                        <div class="node-icon">✈️</div>
+                        <div class="node-title">Travel</div>
+                        <div class="node-desc">₹75K flight → Distance-based calculation</div>
+                        <div class="node-recommendation">Use flight emission calculators</div>
+                    </div>
+                    
+                    <div class="high-value-node">
+                        <div class="node-icon">🏠</div>
+                        <div class="node-title">Property/Vehicles</div>
+                        <div class="node-desc">Large purchases → Lifecycle emissions</div>
+                        <div class="node-recommendation">Use activity-based factors</div>
+                    </div>
+                    
+                    <div class="high-value-node">
+                        <div class="node-icon">💰</div>
+                        <div class="node-title">Investments</div>
+                        <div class="node-desc">Financial products → No direct emissions</div>
+                        <div class="node-recommendation">Exclude from carbon analysis</div>
+                    </div>
                 </div>
             </div>
             
@@ -430,9 +560,21 @@
                     </div>
                     
                     <div class="feature-card">
+                        <div class="feature-icon">💰</div>
+                        <div class="feature-title">High-Value Filtering</div>
+                        <div class="feature-desc">Transactions ≥₹50K excluded from spend-based analysis</div>
+                    </div>
+                    
+                    <div class="feature-card">
                         <div class="feature-icon">⚡</div>
                         <div class="feature-title">Hybrid Efficiency</div>
                         <div class="feature-desc">80% rule-based + 20% LLM for speed & cost</div>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">📈</div>
+                        <div class="feature-title">Timeline Analysis</div>
+                        <div class="feature-desc">Weekly trends vs urban India baseline (8.5 kg CO2e/week)</div>
                     </div>
                     
                     <div class="feature-card">
@@ -451,8 +593,13 @@
         </div>
         
         <div class="footer">
-            <p>Built with LangGraph • Powered by Groq & Anthropic • Data from NSSO</p>
+            <p>Built with LangGraph • 9-Node Pipeline • High-Value Filtering • Timeline Analysis • Powered by Groq & Anthropic</p>
         </div>
     </div>
 </body>
 </html>
+
+
+
+
+
