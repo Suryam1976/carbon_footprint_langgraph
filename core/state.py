@@ -62,6 +62,7 @@ class GraphState(TypedDict):
     # Processing stages
     transactions: list[Transaction]
     redacted_transactions: list[RedactedTransaction]
+    filtered_transactions: list[RedactedTransaction]  # NEW: After high-value filter
     rule_categorized: list[CategorizedTransaction]
     uncategorized: list[RedactedTransaction]
     categorized_transactions: list[CategorizedTransaction]
@@ -79,9 +80,14 @@ class GraphState(TypedDict):
     llm_based_count: int
     pii_redacted_count: int
     
+    # High-value transaction tracking (moved earlier in pipeline)
+    high_value_transactions: list[dict]  # Transactions ≥₹50,000 (excluded from analysis)
+    high_value_count: int
+    
     # Processing metadata
     recommendations: list[str]
     insights: list[str]
     messages: list
     errors: list[str]
     processing_status: str
+

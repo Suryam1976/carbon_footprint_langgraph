@@ -41,7 +41,11 @@ INDIAN_MERCHANT_PATTERNS = {
         "essar", "fuel", "petrol", "diesel", "cng", "gas station",
         "metro", "bus", "railway", "irctc", "bmtc", "best", "dtc",
         "public transport", "train", "local train", "parking", "toll",
-        "fastag"
+        "fastag",
+        # Travel booking platforms - primarily for transport
+        "makemytrip", "goibibo", "cleartrip", "yatra", "booking.com",
+        "oyo", "hotel", "airbnb", "travel", "flight", "airline",
+        "airways", "indigo", "spicejet", "air india", "vistara"
     ],
     "clothing_and_footwear": [
         "myntra", "ajio", "max fashion", "lifestyle", "pantaloons",
@@ -68,11 +72,13 @@ INDIAN_MERCHANT_PATTERNS = {
         "mobile recharge", "broadband", "wifi", "telephone"
     ],
     "recreation_and_leisure": [
-        "pvr", "inox", "cinepolis", "movie", "cinema", "netflix",
-        "amazon prime", "hotstar", "spotify", "entertainment",
-        "makemytrip", "goibibo", "cleartrip", "yatra", "booking.com",
-        "oyo", "hotel", "travel", "flight", "holiday", "tourism",
-        "game", "gaming", "sports", "gym", "fitness"
+        # Entertainment and leisure activities (NOT travel booking)
+        "pvr", "inox", "cinepolis", "movie", "cinema",
+        "netflix", "amazon prime", "hotstar", "disney", "sony liv",
+        "spotify", "gaana", "youtube premium", "entertainment",
+        "game", "gaming", "steam", "playstation", "xbox",
+        "sports", "gym", "fitness", "cult fit", "gold's gym",
+        "holiday", "tourism", "amusement park", "zoo", "museum"
     ],
     "financial_services_and_insurance": [
         "insurance", "lic", "hdfc life", "icici prudential",

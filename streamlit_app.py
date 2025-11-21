@@ -258,6 +258,222 @@ if st.session_state.get('analysis_complete', False):
     # Range explanation
     st.info("📊 **Why the range?** Carbon emissions vary based on diet (veg/non-veg), energy sources (coal/renewable), vehicle efficiency, and product origins (local/imported).")
     
+    # High-value transaction warning
+    high_value_txns = result.get('high_value_transactions', [])
+    if high_value_txns:
+        st.markdown("---")
+    
+    # Weekly Timeline Chart
+    st.header("📈 Emissions Timeline (Weekly)")
+    
+    # Prepare timeline data from transactions
+    timeline_data = []
+    for est in result['carbon_estimates']:
+        # Handle both nested and flat transaction structures
+        if 'transaction' in est and isinstance(est['transaction'], dict) and 'transaction' in est['transaction']:
+            txn = est['transaction']['transaction']
+            category = est['transaction']['category']
+        else:
+            txn = est
+            category = est.get('category', 'miscellaneous')
+        
+        date_str = txn.get('date', '')
+        try:
+            # Try multiple date formats
+            for fmt in ['%d/%m/%Y', '%d-%m-%Y', '%d/%m/%y', '%d-%m-%y', '%Y-%m-%d']:
+                try:
+                    date_obj = datetime.strptime(date_str, fmt)
+                    break
+                except:
+                    continue
+            else:
+                continue  # Skip if date parsing fails
+            
+            timeline_data.append({
+                'Date': date_obj,
+                'Category': category.replace('_', ' ').title(),
+                'CO2_Min': est.get('carbon_kg_min', 0),
+                'CO2_Max': est.get('carbon_kg_max', 0),
+                'CO2_Avg': est.get('carbon_kg_avg', 0)
+            })
+        except:
+            pass  # Skip transactions with invalid dates
+    
+    if timeline_data:
+        df_timeline = pd.DataFrame(timeline_data)
+        df_timeline = df_timeline.sort_values('Date')
+        
+        # Group by week
+        df_timeline['Week'] = df_timeline['Date'].dt.to_period('W').apply(lambda r: r.start_time)
+        
+        # Aggregate by week
+        weekly_totals = df_timeline.groupby('Week').agg({
+            'CO2_Min': 'sum',
+            'CO2_Max': 'sum',
+            'CO2_Avg': 'sum'
+        }).reset_index()
+        
+        # Also get category-wise weekly data for stacked view
+        weekly_by_category = df_timeline.groupby(['Week', 'Category'])['CO2_Avg'].sum().reset_index()
+        
+        # Create tabs for different views
+        tab1, tab2 = st.tabs(["Total Emissions", "By Category"])
+        
+        with tab1:
+            # Line chart with min/max range
+            fig_timeline = go.Figure()
+            
+            # Add min/max range as filled area
+            fig_timeline.add_trace(go.Scatter(
+                x=weekly_totals['Week'],
+                y=weekly_totals['CO2_Max'],
+                mode='lines',
+                name='Max',
+                line=dict(width=0),
+                showlegend=False,
+                hovertemplate='Max: %{y:.2f} kg CO2e<extra></extra>'
+            ))
+            
+            fig_timeline.add_trace(go.Scatter(
+                x=weekly_totals['Week'],
+                y=weekly_totals['CO2_Min'],
+                mode='lines',
+                name='Min',
+                fill='tonexty',
+                fillcolor='rgba(76, 175, 80, 0.2)',
+                line=dict(width=0),
+                showlegend=False,
+                hovertemplate='Min: %{y:.2f} kg CO2e<extra></extra>'
+            ))
+            
+            # Add average line
+            fig_timeline.add_trace(go.Scatter(
+                x=weekly_totals['Week'],
+                y=weekly_totals['CO2_Avg'],
+                mode='lines+markers',
+                name='Your Average',
+                line=dict(color='#2E7D32', width=3),
+                marker=dict(size=8, color='#2E7D32'),
+                hovertemplate='Week: %{x|%d %b %Y}<br>Your CO2: %{y:.2f} kg<extra></extra>'
+            ))
+            
+            # Add reference line for average urban Indian (weekly)
+            # Based on ~400-500 kg CO2e/year for urban India = ~7.7-9.6 kg/week
+            urban_avg_weekly = 8.5  # kg CO2e per week (middle estimate)
+            fig_timeline.add_hline(
+                y=urban_avg_weekly,
+                line_dash="dot",
+                line_color="#FF6B35",
+                line_width=2,
+                annotation_text="Urban India Average (~8.5 kg/week)",
+                annotation_position="top right",
+                annotation=dict(
+                    font=dict(size=12, color="#FF6B35"),
+                    bgcolor="rgba(255, 255, 255, 0.8)",
+                    bordercolor="#FF6B35",
+                    borderwidth=1
+                )
+            )
+            
+            fig_timeline.update_layout(
+                title='Weekly Carbon Emissions Trend vs Urban India Average',
+                xaxis_title='Week',
+                yaxis_title='CO2 Emissions (kg)',
+                hovermode='x unified',
+                height=400,
+                showlegend=True
+            )
+            
+            st.plotly_chart(fig_timeline, use_container_width=True)
+            
+            # Show summary stats with comparison
+            col_t1, col_t2, col_t3, col_t4 = st.columns(4)
+            with col_t1:
+                user_avg = weekly_totals['CO2_Avg'].mean()
+                st.metric("Your Avg/Week", f"{user_avg:.2f} kg")
+            with col_t2:
+                comparison = "Above" if user_avg > urban_avg_weekly else "Below"
+                diff = abs(user_avg - urban_avg_weekly)
+                st.metric("vs Urban India", f"{comparison}", f"{diff:.1f} kg difference")
+            with col_t3:
+                st.metric("Highest Week", f"{weekly_totals['CO2_Avg'].max():.2f} kg")
+            with col_t4:
+                trend = "Increasing" if weekly_totals['CO2_Avg'].iloc[-1] > weekly_totals['CO2_Avg'].iloc[0] else "Decreasing"
+                st.metric("Trend", trend)
+            
+            # Add context explanation
+            st.info("""
+            📊 **Reference Context**: The dotted orange line shows the average weekly carbon footprint for urban Indians (~8.5 kg CO2e/week, based on ~450 kg/year).
+            
+            **Sources**: India's per capita emissions (~2.4 tons/year national avg, ~4-5 tons/year urban) from spending-based studies and NSSO consumption data.
+            """)
+        
+        with tab2:
+            # Stacked area chart by category
+            fig_stacked = go.Figure()
+            
+            # Get unique categories
+            categories = weekly_by_category['Category'].unique()
+            colors = px.colors.qualitative.Set2
+            
+            for i, category in enumerate(categories):
+                cat_data = weekly_by_category[weekly_by_category['Category'] == category]
+                fig_stacked.add_trace(go.Scatter(
+                    x=cat_data['Week'],
+                    y=cat_data['CO2_Avg'],
+                    name=category,
+                    mode='lines',
+                    stackgroup='one',
+                    fillcolor=colors[i % len(colors)],
+                    hovertemplate='%{fullData.name}<br>CO2: %{y:.2f} kg<extra></extra>'
+                ))
+            
+            fig_stacked.update_layout(
+                title='Weekly Emissions by Category (Stacked)',
+                xaxis_title='Week',
+                yaxis_title='CO2 Emissions (kg)',
+                hovermode='x unified',
+                height=400
+            )
+            
+            st.plotly_chart(fig_stacked, use_container_width=True)
+    else:
+        st.info("No date information available for timeline chart")
+    
+    st.markdown("---")
+    
+    # High-value transaction warning (display after timeline)
+    if high_value_txns:
+        st.warning(f"""⚠️ **High-Value Transaction Alert**
+        
+Found **{len(high_value_txns)} transaction(s) ≥ ₹50,000** that may skew spend-based carbon estimation.
+
+For large purchases (electronics, vehicles, property, investments), **activity-based carbon footprint calculation** is recommended for accuracy.
+""")
+        
+        with st.expander("📋 View High-Value Transactions", expanded=True):
+            hv_data = []
+            for txn in high_value_txns:
+                hv_data.append({
+                    'Description': txn.get('description', ''),
+                    'Amount': f"₹{txn.get('amount', 0):,.0f}",
+                    'Category': 'Not Categorized',  # Fixed: Don't access txn['category']
+                    'Estimated CO2 (kg)': 'N/A - Use Activity-Based',
+                    'Recommendation': 'Use activity-based estimation'
+                })
+            
+            df_hv = pd.DataFrame(hv_data)
+            st.dataframe(df_hv, use_container_width=True, hide_index=True)
+            
+            st.markdown("""
+**Why activity-based estimation?**
+- A ₹50,000 laptop has a specific manufacturing footprint (~300-400 kg CO2e)
+- A ₹1,00,000 flight has emissions based on distance, not just ticket price
+- Property/vehicle purchases have lifecycle emissions unrelated to price
+
+**Suggestion:** For accurate results, exclude these from spend-based analysis and calculate their carbon footprint separately using product-specific emission factors.
+""")
+    
     st.markdown("---")
     
     # Categorization Efficiency
@@ -436,6 +652,8 @@ if st.session_state.get('analysis_complete', False):
     # Transaction details (expandable)
     with st.expander("📝 View All Transactions"):
         txn_data = []
+        
+        # Add regular transactions with carbon estimates
         for est in result['carbon_estimates']:
             # Handle both nested and flat transaction structures
             if 'transaction' in est and isinstance(est['transaction'], dict) and 'transaction' in est['transaction']:
@@ -458,6 +676,20 @@ if st.session_state.get('analysis_complete', False):
                 'CO2 Min': f"{est.get('carbon_kg_min', 0):.3f}",
                 'CO2 Max': f"{est.get('carbon_kg_max', 0):.3f}",
                 'CO2 Avg': f"{est.get('carbon_kg_avg', 0):.3f}"
+            })
+        
+        # Add high-value transactions (excluded from carbon analysis)
+        for hv_txn in result.get('high_value_transactions', []):
+            txn_data.append({
+                'Date': hv_txn.get('date', ''),
+                'Description': hv_txn.get('description', ''),
+                'Amount': f"₹{hv_txn.get('amount', 0):,.0f}",
+                'Type': 'Debit',
+                'Category': '⚠️ High-Value (Excluded)',
+                'Method': 'Not Categorized',
+                'CO2 Min': 'N/A',
+                'CO2 Max': 'N/A',
+                'CO2 Avg': 'N/A'
             })
         
         df_txn = pd.DataFrame(txn_data)
@@ -590,6 +822,10 @@ st.markdown("""
     <p>🌱 Reduce, Reuse, Recycle 🌱</p>
 </div>
 """, unsafe_allow_html=True)
+
+
+
+
 
 
 

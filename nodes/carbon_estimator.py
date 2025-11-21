@@ -6,7 +6,8 @@ from utils.patterns import get_emission_factor, normalize_category
 
 def estimate_carbon_node(state: GraphState) -> GraphState:
     """
-    Node 6: Calculate carbon footprint for each categorized transaction
+    Node 6: Calculate carbon footprint for categorized transactions
+    High-value transactions already filtered out in Node 3
     """
     carbon_estimates = []
     total_carbon_min = 0
@@ -21,8 +22,10 @@ def estimate_carbon_node(state: GraphState) -> GraphState:
         # Handle both nested and flat transaction structures
         if "transaction" in transaction:
             amount = transaction["transaction"].get("amount", 0)
+            description = transaction["transaction"].get("description", "")
         else:
             amount = transaction.get("amount", 0)
+            description = transaction.get("description", "")
         
         # Get emission factor for category
         emission_factor = get_emission_factor(category)
@@ -33,7 +36,7 @@ def estimate_carbon_node(state: GraphState) -> GraphState:
         carbon_max = amount_thousands * emission_factor["max"]
         carbon_avg = (carbon_min + carbon_max) / 2
         
-        # Create carbon estimate
+        # Create carbon estimate (no high-value checks needed)
         carbon_estimate = {
             **transaction,
             "carbon_kg_min": round(carbon_min, 2),
@@ -56,9 +59,13 @@ def estimate_carbon_node(state: GraphState) -> GraphState:
     state["total_carbon_kg_max"] = round(total_carbon_max, 2)
     state["total_carbon_kg_avg"] = round(total_carbon_avg, 2)
     
-    state["messages"] = state.get("messages", []) + [
+    # Build messages
+    messages = [
         AIMessage(content=f"✅ Carbon footprint calculated for {len(carbon_estimates)} transactions"),
         AIMessage(content=f"📊 Total estimated emissions: {round(total_carbon_avg, 1)} kg CO2e")
     ]
     
+    state["messages"] = state.get("messages", []) + messages
+    
     return state
+

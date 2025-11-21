@@ -14,6 +14,7 @@ from nodes import (
     parse_pdf_node,
     extract_transactions_node,
     redact_pii_node,
+    filter_high_value_node,  # NEW NODE
     rule_based_categorization_node,
     llm_categorization_node,
     estimate_carbon_node,
@@ -25,29 +26,30 @@ def create_carbon_footprint_graph() -> StateGraph:
     """
     Create the LangGraph workflow for carbon footprint estimation
     
-    Graph Flow (8 Nodes):
-    START → parse_pdf → extract_transactions → redact_pii 
+    Graph Flow (9 Nodes):
+    START → parse_pdf → extract_transactions → redact_pii → filter_high_value
           → rule_based_categorization → llm_categorization 
           → estimate_carbon → aggregate_results → generate_insights → END
     """
-    
     workflow = StateGraph(GraphState)
     
-    # Add all 8 nodes
+    # Add all nodes
     workflow.add_node("parse_pdf", parse_pdf_node)
     workflow.add_node("extract_transactions", extract_transactions_node)
     workflow.add_node("redact_pii", redact_pii_node)
+    workflow.add_node("filter_high_value", filter_high_value_node)  # NEW
     workflow.add_node("rule_based_categorization", rule_based_categorization_node)
     workflow.add_node("llm_categorization", llm_categorization_node)
     workflow.add_node("estimate_carbon", estimate_carbon_node)
     workflow.add_node("aggregate_results", aggregate_results_node)
     workflow.add_node("generate_insights", generate_insights_node)
     
-    # Define linear flow
+    # Define linear flow with new node
     workflow.set_entry_point("parse_pdf")
     workflow.add_edge("parse_pdf", "extract_transactions")
     workflow.add_edge("extract_transactions", "redact_pii")
-    workflow.add_edge("redact_pii", "rule_based_categorization")
+    workflow.add_edge("redact_pii", "filter_high_value")  # NEW EDGE
+    workflow.add_edge("filter_high_value", "rule_based_categorization")
     workflow.add_edge("rule_based_categorization", "llm_categorization")
     workflow.add_edge("llm_categorization", "estimate_carbon")
     workflow.add_edge("estimate_carbon", "aggregate_results")
@@ -98,6 +100,8 @@ def run_carbon_analysis(pdf_path: str = None, password: str = None,
         "rule_based_count": 0,
         "llm_based_count": 0,
         "pii_redacted_count": 0,
+        "high_value_transactions": [],
+        "high_value_count": 0,
         "recommendations": [],
         "insights": [],
         "messages": [],
