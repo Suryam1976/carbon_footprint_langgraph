@@ -36,6 +36,13 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+COMPLETE_CHANGES.md 
+llm_response_debug.txt
+json_error_debug.txt    
+PATTERN_ENHANCEMENTS.md
+HDFC_FORMAT_FIX.md
+TROUBLESHOOTING.md
+URGENT_FIX.md
 
 # PyInstaller
 *.manifest

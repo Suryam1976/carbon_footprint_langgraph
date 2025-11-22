@@ -3,13 +3,15 @@
 import os
 from .config import DEFAULT_ANTHROPIC_MODEL, DEFAULT_GROQ_MODEL
 
-def get_llm(provider: str = "anthropic", model: str = None):
+def get_llm(provider: str = "anthropic", model: str = None, temperature: float = None, max_tokens: int = None):
     """
     Initialize LLM with choice between Groq and Anthropic
     
     Args:
         provider: "anthropic" or "groq"
         model: Specific model name (optional)
+        temperature: Temperature for generation (optional, defaults per provider)
+        max_tokens: Maximum tokens for generation (optional, defaults per provider)
     
     Returns:
         Configured LLM instance
@@ -22,8 +24,8 @@ def get_llm(provider: str = "anthropic", model: str = None):
         
         return ChatGroq(
             model=model,
-            temperature=0.1,
-            max_tokens=4096,
+            temperature=temperature if temperature is not None else 0.1,
+            max_tokens=max_tokens if max_tokens is not None else 4096,
             groq_api_key=os.getenv("GROQ_API_KEY")
         )
     
@@ -35,8 +37,8 @@ def get_llm(provider: str = "anthropic", model: str = None):
         
         return ChatAnthropic(
             model=model,
-            temperature=0.1,
-            max_tokens=4096,
+            temperature=temperature if temperature is not None else 0.1,
+            max_tokens=max_tokens if max_tokens is not None else 4096,
             anthropic_api_key=os.getenv("ANTHROPIC_API_KEY")
         )
     

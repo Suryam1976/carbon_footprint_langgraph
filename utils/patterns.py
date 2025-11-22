@@ -27,7 +27,14 @@ INDIAN_MERCHANT_PATTERNS = {
         "dmart", "reliance fresh", "spencer", "more", "grocery",
         "supermarket", "kirana", "vegetables", "fruits", "restaurant",
         "food delivery", "online food", "cafe", "bakery", "meat",
-        "chicken", "fish", "dairy", "milk", "bread"
+        "chicken", "fish", "dairy", "milk", "bread",
+        # BigBasket variants
+        "bbnow", "bbdaily", "big basket", "bb now", "bb daily",
+        # Other food delivery and grocery
+        "dominos", "pizza hut", "kfc", "mcdonald", "burger king",
+        "akshayakalpa", "licious", "freshmenu", "faasos",
+        # Local stores and markets
+        "super market", "retail", "provisions", "general store"
     ],
     "housing_and_utilities": [
         "electricity", "water", "gas", "lpg", "utility", "power",
@@ -63,7 +70,15 @@ INDIAN_MERCHANT_PATTERNS = {
         "apollo", "fortis", "max healthcare", "hospital", "clinic",
         "pharmacy", "medicine", "doctor", "medical", "diagnostic",
         "lab", "pathology", "dental", "eye", "optical",
-        "salon", "spa", "beauty", "cosmetics", "nykaa", "personal care"
+        "salon", "spa", "beauty", "cosmetics", "nykaa", "personal care",
+        # Salons and grooming
+        "unisex salon", "unisex saloon", "hair salon", "hair studio",
+        "barber", "parlour", "parlor", "grooming", "haircut",
+        # Personal care services
+        "urban company", "at home services", "housejoy",
+        # Healthcare facilities
+        "arete hospital", "care hospital", "rainbow hospital",
+        "apollo pharmacy", "medplus", "netmeds", "pharmeasy"
     ],
     "education_and_communication": [
         "school", "college", "university", "course", "tuition",
