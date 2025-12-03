@@ -55,6 +55,7 @@ def create_carbon_footprint_graph() -> StateGraph:
     workflow.add_edge("estimate_carbon", "aggregate_results")
     workflow.add_edge("aggregate_results", "generate_insights")
     workflow.add_edge("generate_insights", END)
+   
     
     return workflow
 
