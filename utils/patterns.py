@@ -1,6 +1,11 @@
 """Merchant patterns and emission factors for categorization"""
 
+from __future__ import annotations
+
+import logging
 from typing import Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 # Official categories from SpendCategory-EmissionFactorkgCO2e1000.csv
 # These are the ONLY allowed categories - no new ones should be added
@@ -183,15 +188,23 @@ def categorize_transaction(description: str) -> Optional[str]:
 
 def get_emission_factor(category: str) -> Dict[str, float]:
     """
-    Get emission factor for a category
-    
+    Get emission factor for a category.
+
     Args:
         category: Category name
-        
+
     Returns:
-        Dict with min, max emission factors
+        Dict with min, max emission factors (or miscellaneous factors if unknown)
     """
-    return EMISSION_FACTORS.get(category, EMISSION_FACTORS["miscellaneous"])
+    if category not in EMISSION_FACTORS:
+        logger.warning(
+            "Unknown category '%s' passed to get_emission_factor(); falling back to "
+            "'miscellaneous'. This should be rare/impossible once normalize_category() "
+            "is applied upstream.",
+            category,
+        )
+        return EMISSION_FACTORS["miscellaneous"]
+    return EMISSION_FACTORS[category]
 
 def get_all_categories() -> List[str]:
     """Get list of all official categories"""

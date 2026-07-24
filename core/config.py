@@ -19,3 +19,10 @@ def get_langsmith_config():
 # Default models
 DEFAULT_ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
 DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+
+# Pipeline configuration
+HIGH_VALUE_THRESHOLD = 50000  # ₹ — transactions >= this are excluded from
+# spend-based carbon estimation (activity-based estimation would be needed instead)
+
+LLM_CATEGORIZATION_BATCH_SIZE = 25  # max transactions sent to LLM per call
+# (keeping token budget safe for uncategorized transaction batches)

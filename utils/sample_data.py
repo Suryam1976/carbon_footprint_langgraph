@@ -166,76 +166,64 @@ def redact_description(description: str) -> str:
     return description
 
 def get_sample_categorized_transactions() -> List[Dict[str, Any]]:
-    """Get sample categorized transactions"""
+    """Get sample categorized transactions using real pattern matching.
+
+    Uses the actual categorize_transaction() function from utils.patterns,
+    ensuring sample data matches production behavior exactly.
+    """
+    from utils.patterns import categorize_transaction, normalize_category
+
     redacted = get_sample_redacted_transactions()
-    
-    # Add categories based on merchant patterns
-    categories = {
-        "SWIGGY": "food_delivery",
-        "UBER": "transport_ride_sharing", 
-        "ELECTRICITY": "housing_utilities",
-        "BIGBASKET": "food_groceries",
-        "CASH WITHDRAWAL": "miscellaneous",
-        "ZOMATO": "food_delivery",
-        "INDIAN OIL": "transport_fuel",
-        "AMAZON": "shopping_online",
-        "PVR CINEMAS": "recreation_entertainment",
-        "MYNTRA": "shopping_clothing",
-        "DMART": "food_groceries",
-        "OLA": "transport_ride_sharing"
-    }
-    
+
     categorized = []
     for txn in redacted:
-        category = "miscellaneous"
-        for merchant, cat in categories.items():
-            if merchant in txn["description"].upper():
-                category = cat
-                break
-        
-        categorized.append({
-            **txn,
-            "category": category,
-            "categorization_method": "rule_based" if category != "miscellaneous" else "llm_based"
-        })
-    
+        # Use real pattern matching (same as production)
+        matched_category = categorize_transaction(txn["description"])
+        category = normalize_category(matched_category) if matched_category else "miscellaneous"
+        method = "rule_based" if matched_category else "llm_based"
+
+        categorized.append(
+            {
+                **txn,
+                "category": category,
+                "categorization_method": method,
+            }
+        )
+
     return categorized
 
 def get_sample_carbon_estimates() -> List[Dict[str, Any]]:
-    """Get sample carbon estimates"""
+    """Get sample carbon estimates using real emission factors.
+
+    Uses the actual get_emission_factor() function from utils.patterns,
+    ensuring sample data matches production behavior exactly.
+    """
+    from utils.patterns import get_emission_factor
+
     categorized = get_sample_categorized_transactions()
-    
-    # Emission factors (kg CO2e per ₹1000)
-    emission_factors = {
-        "food_delivery": {"min": 8, "max": 15},
-        "transport_ride_sharing": {"min": 25, "max": 40},
-        "housing_utilities": {"min": 12, "max": 20},
-        "food_groceries": {"min": 6, "max": 12},
-        "transport_fuel": {"min": 30, "max": 45},
-        "shopping_online": {"min": 5, "max": 10},
-        "recreation_entertainment": {"min": 3, "max": 8},
-        "shopping_clothing": {"min": 8, "max": 15},
-        "miscellaneous": {"min": 5, "max": 10}
-    }
-    
+
     estimates = []
     for txn in categorized:
-        factor = emission_factors.get(txn["category"], {"min": 5, "max": 10})
+        # Use real emission factors (same as production)
+        factor = get_emission_factor(txn["category"])
         amount_thousands = txn["amount"] / 1000
-        
+
         carbon_min = amount_thousands * factor["min"]
         carbon_max = amount_thousands * factor["max"]
         carbon_avg = (carbon_min + carbon_max) / 2
-        
-        estimates.append({
-            **txn,
-            "carbon_kg_min": round(carbon_min, 2),
-            "carbon_kg_max": round(carbon_max, 2),
-            "carbon_kg_avg": round(carbon_avg, 2),
-            "emission_factor_min": factor["min"],
-            "emission_factor_max": factor["max"]
-        })
-    
+
+        estimates.append(
+            {
+                **txn,
+                "carbon_kg_min": round(carbon_min, 2),
+                "carbon_kg_max": round(carbon_max, 2),
+                "carbon_kg_avg": round(carbon_avg, 2),
+                "emission_factor_min": factor["min"],
+                "emission_factor_max": factor["max"],
+                "emission_factor_notes": factor.get("notes", ""),
+            }
+        )
+
     return estimates
 
 def get_sample_analysis_result() -> Dict[str, Any]:

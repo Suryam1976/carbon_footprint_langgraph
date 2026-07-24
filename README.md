@@ -323,9 +323,9 @@ EMISSION_FACTORS = {
 
 ## 📋 Requirements
 
-- Python 3.10+
-- Groq API key (required for transaction extraction)
-- Anthropic API key (optional, for categorization)
+- **Python 3.10+** — If `python3 --version` shows an older version (e.g., 3.9.x), you're likely outside your project venv. Activate it before installing: `source venv/bin/activate`
+- **Groq API key** (required for transaction extraction)
+- **Anthropic API key** (used for categorization and insights)
 
 ### Key Dependencies
 

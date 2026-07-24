@@ -18,14 +18,10 @@ def estimate_carbon_node(state: GraphState) -> GraphState:
         category = transaction.get("category", "miscellaneous")
         # Normalize category to ensure it's in official list
         category = normalize_category(category)
-        
-        # Handle both nested and flat transaction structures
-        if "transaction" in transaction:
-            amount = transaction["transaction"].get("amount", 0)
-            description = transaction["transaction"].get("description", "")
-        else:
-            amount = transaction.get("amount", 0)
-            description = transaction.get("description", "")
+
+        # Flat transaction structure (all categorized transactions have amount/description at top level)
+        amount = transaction.get("amount", 0)
+        description = transaction.get("description", "")
         
         # Get emission factor for category
         emission_factor = get_emission_factor(category)

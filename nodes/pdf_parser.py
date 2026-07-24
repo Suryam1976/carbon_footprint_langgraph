@@ -1,6 +1,11 @@
 """Node 1: PDF Parsing"""
 
 import re
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    fitz = None
+
 from langchain_core.messages import AIMessage
 from core.state import GraphState
 from utils.sample_data import get_sample_statement_text, get_sample_transactions
@@ -25,10 +30,11 @@ def parse_pdf_node(state: GraphState) -> GraphState:
     
     try:
         # Try to parse PDF
-        import fitz  # PyMuPDF
-        
+        if not fitz:
+            raise ImportError("PyMuPDF (fitz) not installed")
+
         raw_text = ""
-        
+
         # Use PyMuPDF for text extraction
         try:
             doc = fitz.open(pdf_path)

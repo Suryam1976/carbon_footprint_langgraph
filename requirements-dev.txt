@@ -1,0 +1,6 @@
+# Development dependencies (includes all production dependencies via -r requirements.txt)
+-r requirements.txt
+
+# Testing
+pytest>=7.4.0,<9.0.0
+pytest-mock>=3.12.0,<4.0.0

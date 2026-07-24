@@ -1,38 +1,65 @@
-"""Node 2: Transaction Extraction"""
+"""Node 2: Transaction Extraction
+
+Extracts structured transactions from raw bank statement text using Groq LLM
+with structured output (primary) and plain-text fallback (secondary).
+
+LLM is ALWAYS set to Groq (llama-3.3-70b-versatile) for extraction because it's
+fast and cost-effective for this high-volume task. Anthropic is reserved for
+categorization and insights.
+"""
+
+from __future__ import annotations
 
 import json
+import logging
 import re
+
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 
-from core.state import GraphState
+from core.exceptions import TransactionExtractionError
 from core.llm_factory import get_llm
+from core.schemas import ExtractedTransactionList
+from core.state import GraphState
 from utils.sample_data import get_sample_transactions
+
+logger = logging.getLogger(__name__)
+
 
 def extract_transactions_node(state: GraphState) -> GraphState:
     """
-    Node 2: Extract structured transactions from raw text using Groq LLM
-    Sends all bank statements to LLM for extraction
+    Node 2: Extract structured transactions from raw bank statement text.
+    Uses Groq LLM (always, for extraction speed) with structured output primary
+    path and plain-text fallback if structured output fails.
+
+    Raises TransactionExtractionError if a real PDF was provided but extraction
+    fails (does NOT silently fall back to sample data, which would be misleading).
     """
-    
-    # Skip if already have transactions (from sample data)
+
+    # Short-circuit: if we're already using sample data from pdf_parser, skip extraction
     if state.get("processing_status") == "using_sample_data" and state.get("transactions"):
+        logger.debug(
+            "Using %d sample transactions (extraction skipped)", len(state["transactions"])
+        )
         state["messages"] = state.get("messages", []) + [
             AIMessage(content=f"Using {len(state['transactions'])} sample transactions")
         ]
         return state
-    
-    # Always use Groq for transaction extraction
+
+    # Always use Groq for transaction extraction (fast, cost-effective)
     llm = get_llm(
         provider="groq",
         model="llama-3.3-70b-versatile",
-        temperature=0,  # Make output more deterministic
-        max_tokens=8000  # Increase from default to handle long statements
+        temperature=0,  # Deterministic parsing
+        max_tokens=8000,
     )
-    
+
     # Universal bank statement extraction prompt
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are an expert Indian bank statement parser. Extract ALL transactions from this bank statement.
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                """You are an expert Indian bank statement parser. Extract ALL transactions from this bank statement.
 
 IMPORTANT: HDFC Bank Format Detection
 If you see columns like "Date | Narration | Chq./Ref.No. | Value Dt | Withdrawal Amt. | Deposit Amt. | Closing Balance":
@@ -62,154 +89,138 @@ CRITICAL RULES:
 2. Extract EVERY transaction
 3. Remove commas from amounts: "945.55" not "945.55"
 4. Simplify UPI descriptions: "UPI-BBNOW-xyz@bank-ref" → "BBNOW"
-5. Return ONLY JSON array
-
-Example HDFC (notice Withdrawal column has amount):
-Input: "01/10/25 UPI-BBNOW-BBNOW.EBZ@HDFCBANK 0000527452791103 01/10/25 945.55 263,745.00"
-Columns: Date | Narration | Ref | Value Dt | Withdrawal | Deposit | Balance
-Output: {{"date": "01/10/2025", "description": "BBNOW", "amount": 945.55, "type": "debit", "balance": 263745.00}}
-
-Example HDFC Credit (Deposit column has amount):
-Input: "15/10/25 NEFT-SALARY-ACME CORP 123456 15/10/25 50000.00 313,745.00"
-Output: {{"date": "15/10/2025", "description": "SALARY-ACME CORP", "amount": 50000.00, "type": "credit", "balance": 313745.00}}
-
-Return format:
-[
-  {{"date": "DD/MM/YYYY", "description": "...", "amount": 0.00, "type": "debit/credit", "balance": 0.00, "raw_text": "..."}}
-]"""),
-        ("human", "Bank Statement Text:\n{statement_text}")
-    ])
+5. Return JSON array with exact field names""",
+            ),
+            ("human", "Bank Statement Text:\n{statement_text}"),
+        ]
+    )
 
     try:
-        chain = prompt | llm
-        
+        # ======== PRIMARY PATH: Structured Output ========
+        # Use .with_structured_output() for guaranteed schema compliance
+        structured_llm = llm.with_structured_output(ExtractedTransactionList)
+        chain = prompt | structured_llm
+
         result = chain.invoke(
             {"statement_text": state["raw_text"]},
             config={
-                "run_name": "extract_transactions_groq", 
-                "tags": ["extraction", "groq", "llama-3.3-70b"]
-            }
+                "run_name": "extract_transactions_groq_structured",
+                "tags": ["extraction", "groq", "llama-3.3-70b", "structured-output"],
+            },
         )
-        
-        # Parse LLM response
-        response_text = result.content if hasattr(result, 'content') else str(result)
-        
-        # Debug: Print first 1000 chars of response
-        print("\n=== LLM Response (first 1000 chars) ===")
-        print(response_text[:1000])
-        print("\n=== End Preview ===")
-        print(f"Total response length: {len(response_text)} characters")
-        
-        # Multiple strategies to extract JSON array
-        json_str = None
-        
-        # Strategy 1: MOST RELIABLE - Find first [ to last ]
-        # This works even when LLM adds explanatory text
-        first_bracket = response_text.find('[')
-        last_bracket = response_text.rfind(']')
-        print(f"\nBracket positions: first=[{first_bracket}], last=[{last_bracket}]")
-        
-        if first_bracket != -1 and last_bracket != -1 and last_bracket > first_bracket:
-            json_str = response_text[first_bracket:last_bracket + 1]
-            print(f"Extracted JSON string length: {len(json_str)} characters")
-            print(f"First 200 chars of extracted JSON: {json_str[:200]}")
-            print(f"Last 200 chars of extracted JSON: {json_str[-200:]}")
-            print("✓ Found JSON using bracket matching")
-        else:
-            print("✗ Bracket matching failed")
-        # Strategy 2: Find JSON in code blocks (```json ... ```)
-        if not json_str:
-            code_block_match = re.search(r'```(?:json)?\s*\n?(\[.*?\])\s*```', response_text, re.DOTALL)
-            if code_block_match:
-                json_str = code_block_match.group(1)
-                print("Found JSON in code block")
-        
-        if not json_str:
-            # Save full response for debugging
-            with open("llm_response_debug.txt", "w", encoding="utf-8") as f:
-                f.write(response_text)
-            raise ValueError(f"LLM response did not contain valid JSON array. Response saved to llm_response_debug.txt. Preview: {response_text[:200]}")
-        
-        # Clean up the JSON string
-        # Remove any trailing commas before closing brackets
-        json_str = re.sub(r',\s*\]', ']', json_str)
-        json_str = re.sub(r',\s*\}', '}', json_str)
-        
-        # Try to parse JSON
-        print("\nAttempting to parse JSON...")
-        try:
-            transactions = json.loads(json_str)
-            print(f"✓ Successfully parsed JSON! Found {len(transactions)} transactions")
-        except json.JSONDecodeError as je:
-            print(f"✗ JSON parse failed: {str(je)}")
-            print(f"Error at position {je.pos if hasattr(je, 'pos') else 'unknown'}")
-            
-            # Try fixing common issues
-            print("\nAttempting to fix JSON...")
-            
-            # Fix 1: Replace single quotes with double quotes
-            json_str_fixed = json_str.replace("'", '"')
-            try:
-                transactions = json.loads(json_str_fixed)
-                print("✓ Fixed JSON by replacing single quotes")
-            except:
-                # Fix 2: Try removing trailing commas
-                json_str_fixed = re.sub(r',\s*}', '}', json_str_fixed)
-                json_str_fixed = re.sub(r',\s*\]', ']', json_str_fixed)
-                try:
-                    transactions = json.loads(json_str_fixed)
-                    print("✓ Fixed JSON by removing trailing commas")
-                except Exception as final_error:
-                    # Save problematic JSON for debugging
-                    with open("json_error_debug.txt", "w", encoding="utf-8") as f:
-                        f.write(json_str)
-                    print(f"✗ All fixes failed. Saved to json_error_debug.txt")
-                    raise ValueError(f"Failed to parse JSON after all fixes. Original error: {str(je)}. Final error: {str(final_error)}")
-        
-        if not transactions or len(transactions) == 0:
-            raise ValueError("No transactions extracted from PDF")
-        
-        # Validate transaction structure
-        required_fields = ['date', 'description', 'amount', 'type']
-        for i, txn in enumerate(transactions):
-            for field in required_fields:
-                if field not in txn:
-                    print(f"Warning: Transaction {i} missing field '{field}', adding default")
-                    if field == 'type':
-                        txn[field] = 'debit'  # Default to debit
-                    elif field == 'amount':
-                        txn[field] = 0.0
-                    else:
-                        txn[field] = ''
-        
-        state["transactions"] = transactions
-        state["extraction_method"] = "groq_llm"
-        state["processing_status"] = "llm_extracted"
-        
-        state["messages"] = state.get("messages", []) + [
-            AIMessage(content=f"✅ Extracted {len(transactions)} transactions from PDF using Groq LLM")
-        ]
-            
-    except json.JSONDecodeError as e:
-        error_msg = f"JSON parsing error: {str(e)}"
-        print(f"\n[ERROR] {error_msg}")
-        print("Falling back to sample data...\n")
-        state["errors"] = state.get("errors", []) + [error_msg]
-        state["transactions"] = get_sample_transactions()
-        state["processing_status"] = "fallback_to_sample"
-        state["messages"] = state.get("messages", []) + [
-            AIMessage(content=f"Failed to parse LLM response as JSON, using sample data. Error: {str(e)}")
-        ]
-        
+
+        transactions = [t.model_dump() for t in result.transactions]
+        logger.debug("Structured output succeeded: extracted %d transactions", len(transactions))
+
     except Exception as e:
-        error_msg = f"Transaction extraction error: {str(e)}"
-        print(f"\n[ERROR] {error_msg}")
-        print("Falling back to sample data...\n")
-        state["errors"] = state.get("errors", []) + [error_msg]
-        state["transactions"] = get_sample_transactions()
-        state["processing_status"] = "fallback_to_sample"
-        state["messages"] = state.get("messages", []) + [
-            AIMessage(content=f"Failed to extract from PDF, using sample data. Check llm_response_debug.txt for details. Error: {str(e)}")
-        ]
+        logger.warning(
+            "Structured output failed: %s. Falling back to plain-text parsing.",
+            str(e),
+            exc_info=True,
+        )
+
+        try:
+            # ======== FALLBACK: Plain-Text Parsing ========
+            # Call LLM in non-structured mode, parse the response manually
+            chain = prompt | llm
+
+            result = chain.invoke(
+                {"statement_text": state["raw_text"]},
+                config={
+                    "run_name": "extract_transactions_groq_plaintext_fallback",
+                    "tags": ["extraction", "groq", "llama-3.3-70b", "plaintext"],
+                },
+            )
+
+            response_text = (
+                result.content if hasattr(result, "content") else str(result)
+            )
+
+            logger.debug("LLM response (first 500 chars): %s...", response_text[:500])
+
+            # Extract JSON using bracket matching (most robust single strategy)
+            first_bracket = response_text.find("[")
+            last_bracket = response_text.rfind("]")
+
+            if first_bracket == -1 or last_bracket == -1 or last_bracket <= first_bracket:
+                raise ValueError(
+                    "LLM response did not contain a valid JSON array. "
+                    "First '[' not found or malformed."
+                )
+
+            json_str = response_text[first_bracket : last_bracket + 1]
+
+            # Clean up common JSON errors
+            json_str = re.sub(r",\s*\]", "]", json_str)  # trailing commas before ]
+            json_str = re.sub(r",\s*\}", "}", json_str)  # trailing commas before }
+
+            transactions = json.loads(json_str)
+
+            if not isinstance(transactions, list) or len(transactions) == 0:
+                raise ValueError("Parsed JSON is not a non-empty array")
+
+            logger.debug("Plain-text fallback succeeded: extracted %d transactions", len(transactions))
+
+        except (json.JSONDecodeError, ValueError) as parse_error:
+            # Both structured and plain-text paths failed
+            # If a real PDF was given, raise an error; don't silently use sample data
+            if state.get("pdf_path"):
+                logger.error(
+                    "Transaction extraction failed for real PDF. "
+                    "Structured output: %s. Fallback parse: %s",
+                    e,
+                    parse_error,
+                    exc_info=True,
+                )
+                raise TransactionExtractionError(
+                    f"Could not extract transactions from the uploaded PDF. "
+                    f"The file may be password-protected, scanned (image-based), "
+                    f"or in an unsupported format. Try a different PDF or use sample data. "
+                    f"Error: {str(parse_error)}"
+                ) from parse_error
+            else:
+                # No PDF was provided, so we should have already short-circuited above
+                logger.error("Unexpected parse failure despite no real PDF: %s", parse_error)
+                raise TransactionExtractionError(
+                    f"Unexpected transaction extraction error: {str(parse_error)}"
+                ) from parse_error
+
+    # Validate and normalize transaction fields
+    validated = []
+    for i, txn in enumerate(transactions):
+        # Ensure all required fields exist
+        for field, default in [
+            ("date", ""),
+            ("description", ""),
+            ("amount", 0.0),
+            ("type", "debit"),
+            ("balance", 0.0),
+            ("raw_text", ""),
+        ]:
+            if field not in txn:
+                logger.debug(
+                    "Transaction %d missing field '%s', using default %r", i, field, default
+                )
+                txn[field] = default
+
+        # Ensure amount is numeric
+        if isinstance(txn["amount"], str):
+            try:
+                txn["amount"] = float(txn["amount"])
+            except ValueError:
+                logger.warning("Transaction %d has non-numeric amount: %s", i, txn["amount"])
+                txn["amount"] = 0.0
+
+        validated.append(txn)
+
+    state["transactions"] = validated
+    state["extraction_method"] = "groq_llm_structured" if len(state["transactions"]) > 0 else "none"
+    state["processing_status"] = "llm_extracted"
+
+    state["messages"] = state.get("messages", []) + [
+        AIMessage(
+            content=f"✅ Extracted {len(validated)} transactions from bank statement using Groq LLM"
+        )
+    ]
 
     return state

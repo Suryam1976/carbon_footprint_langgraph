@@ -24,25 +24,23 @@ class RedactedTransaction(TypedDict):
     redaction_applied: bool
     redacted_fields: list[str]
 
-class CategorizedTransaction(TypedDict):
-    """Transaction with carbon category"""
-    transaction: RedactedTransaction
+class CategorizedTransaction(RedactedTransaction):
+    """Flat structure — all RedactedTransaction fields plus categorization fields.
+    Matches what rule_categorizer.py and llm_categorizer.py actually produce
+    via **transaction spreads. (Previously declared as nested {"transaction": {...},
+    "category": ...}, which did not match runtime reality.)"""
     category: str
-    sub_category: str
-    confidence: float
-    carbon_relevant: bool
-    categorization_method: str  # 'rule_based' or 'llm'
+    categorization_method: str  # 'rule_based' | 'llm_based' | 'fallback'
 
-class CarbonEstimate(TypedDict):
-    """Carbon footprint estimate for transaction"""
-    transaction: CategorizedTransaction
-    co2_kg_min: float
-    co2_kg_max: float
-    co2_kg_avg: float
-    estimation_method: str
+class CarbonEstimate(CategorizedTransaction):
+    """Flat structure — matches carbon_estimator.py's **transaction spread.
+    Field names match actual runtime keys (carbon_kg_*, not co2_kg_*)."""
+    carbon_kg_min: float
+    carbon_kg_max: float
+    carbon_kg_avg: float
     emission_factor_min: float
     emission_factor_max: float
-    notes: str
+    emission_factor_notes: str
 
 class GraphState(TypedDict):
     """Main state for the LangGraph workflow"""

@@ -1,14 +1,18 @@
 """
 🌱 LangGraph Orchestrator for Carbon Footprint Analysis
 
-Simple, clean orchestration of the 8-node workflow:
-PDF → Extract → Redact → Rule → LLM → Carbon → Aggregate → Insights
+Simple, clean orchestration of the 9-node workflow:
+PDF → Extract → Redact → Filter → Rule → LLM → Carbon → Aggregate → Insights
 """
 
-from datetime import datetime
-from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
+from __future__ import annotations
 
+from datetime import datetime
+
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, StateGraph
+
+from core.logging_config import configure_logging
 from core.state import GraphState
 from nodes import (
     parse_pdf_node,
@@ -128,9 +132,12 @@ def run_carbon_analysis(pdf_path: str = None, password: str = None,
     return result
 
 if __name__ == "__main__":
+    # Initialize logging
+    configure_logging()
+
     print("🌱 Carbon Footprint LangGraph Orchestrator")
     print("=" * 50)
-    
+
     # Simple test run
     result = run_carbon_analysis()
     

@@ -5,20 +5,30 @@ Upload bank statements and get detailed carbon footprint insights with min/max r
 Shows rule-based vs LLM categorization efficiency
 """
 
-import streamlit as st
+from __future__ import annotations
+
 import json
+import os
+import tempfile
+from datetime import datetime
+
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import pandas as pd
-from datetime import datetime
-import tempfile
-import os
+import streamlit as st
 from dotenv import load_dotenv
+
+from core.benchmarks import KG_CO2_PER_TREE_PER_YEAR, WEEKLY_PER_CAPITA_CO2E_KG
+from core.exceptions import TransactionExtractionError
+from core.logging_config import configure_logging
+from orchestrator import run_carbon_analysis
+from utils.patterns import EMISSION_FACTORS, get_category_display_name
+from utils.reporting import generate_report, generate_csv_data, generate_json_report
+
 load_dotenv(override=True)  # Force reload
 
-from orchestrator import run_carbon_analysis
-from utils.reporting import generate_report
-from utils.patterns import EMISSION_FACTORS
+# Initialize logging
+configure_logging()
 
 # Page config
 st.set_page_config(
@@ -169,7 +179,7 @@ if analyze_button:
                     temp_path = f"temp_{uploaded_file.name}"
                     with open(temp_path, "wb") as f:
                         f.write(uploaded_file.getbuffer())
-                    
+
                     st.info(f"📄 Analyzing {uploaded_file.name} with {llm_provider.title()} {llm_model}")
                     result = run_carbon_analysis(
                         pdf_path=temp_path,
@@ -177,7 +187,7 @@ if analyze_button:
                         llm_provider=llm_provider,
                         llm_model=llm_model
                     )
-                    
+
                     # Clean up temp file
                     try:
                         os.remove(temp_path)
@@ -186,13 +196,20 @@ if analyze_button:
                 else:
                     st.warning("Please upload a PDF file or use sample data")
                     st.stop()
-            
+
             # Store results
             st.session_state['analysis_result'] = result
             st.session_state['analysis_complete'] = True
-            
+
+        except TransactionExtractionError as e:
+            st.error(
+                f"❌ Could not read transactions from this PDF. {str(e)}\n\n"
+                f"Try: (1) uploading a different PDF, (2) using sample data, or "
+                f"(3) checking if the file is password-protected."
+            )
+            st.session_state['analysis_complete'] = False
         except Exception as e:
-            st.error(f"Analysis failed: {str(e)}")
+            st.error(f"❌ Analysis failed: {str(e)}")
             st.session_state['analysis_complete'] = False
 
 # Display results
@@ -249,7 +266,7 @@ if st.session_state.get('analysis_complete', False):
     
     with col4:
         # Equivalent trees needed (based on average)
-        trees_needed = result['total_carbon_kg_avg'] / 21  # ~21kg CO2 per tree per year
+        trees_needed = result['total_carbon_kg_avg'] / KG_CO2_PER_TREE_PER_YEAR
         st.metric(
             label="Trees to Offset (yearly)",
             value=f"{trees_needed:.1f} trees"
@@ -269,15 +286,9 @@ if st.session_state.get('analysis_complete', False):
     # Prepare timeline data from transactions
     timeline_data = []
     for est in result['carbon_estimates']:
-        # Handle both nested and flat transaction structures
-        if 'transaction' in est and isinstance(est['transaction'], dict) and 'transaction' in est['transaction']:
-            txn = est['transaction']['transaction']
-            category = est['transaction']['category']
-        else:
-            txn = est
-            category = est.get('category', 'miscellaneous')
-        
-        date_str = txn.get('date', '')
+        # Flat transaction structure (all fields at top level)
+        date_str = est.get('date', '')
+        category = est.get('category', 'miscellaneous')
         try:
             # Try multiple date formats
             for fmt in ['%d/%m/%Y', '%d-%m-%Y', '%d/%m/%y', '%d-%m-%y', '%Y-%m-%d']:
@@ -358,14 +369,13 @@ if st.session_state.get('analysis_complete', False):
             ))
             
             # Add reference line for average urban Indian (weekly)
-            # Based on ~400-500 kg CO2e/year for urban India = ~7.7-9.6 kg/week
-            urban_avg_weekly = 8.5  # kg CO2e per week (middle estimate)
+            urban_avg_weekly = WEEKLY_PER_CAPITA_CO2E_KG
             fig_timeline.add_hline(
                 y=urban_avg_weekly,
                 line_dash="dot",
                 line_color="#FF6B35",
                 line_width=2,
-                annotation_text="Urban India Average (~8.5 kg/week)",
+                annotation_text=f"Urban India Average (~{urban_avg_weekly:.1f} kg/week)",
                 annotation_position="top right",
                 annotation=dict(
                     font=dict(size=12, color="#FF6B35"),
@@ -402,10 +412,12 @@ if st.session_state.get('analysis_complete', False):
                 st.metric("Trend", trend)
             
             # Add context explanation
-            st.info("""
-            📊 **Reference Context**: The dotted orange line shows the average weekly carbon footprint for urban Indians (~8.5 kg CO2e/week, based on ~450 kg/year).
-            
-            **Sources**: India's per capita emissions (~2.4 tons/year national avg, ~4-5 tons/year urban) from spending-based studies and NSSO consumption data.
+            st.info(f"""
+            📊 **Reference Context**: The dotted orange line shows the average weekly carbon footprint for urban Indians (~{WEEKLY_PER_CAPITA_CO2E_KG:.1f} kg CO2e/week, based on spend-based spending patterns).
+
+            **Note**: This analysis measures spend-based emissions from your digital transactions only. It excludes cash spending, owned-vehicle fuel not paid by card, home energy not billed digitally, etc. Comparisons are directional/approximate.
+
+            **Sources**: ScienceDirect "Scale and drivers of carbon footprints in households, cities and regions across India" (urban per-capita ~2,330 kg CO2e/year); ISEC Policy Brief on household footprints.
             """)
         
         with tab2:
@@ -655,22 +667,15 @@ For large purchases (electronics, vehicles, property, investments), **activity-b
         
         # Add regular transactions with carbon estimates
         for est in result['carbon_estimates']:
-            # Handle both nested and flat transaction structures
-            if 'transaction' in est and isinstance(est['transaction'], dict) and 'transaction' in est['transaction']:
-                txn = est['transaction']['transaction']
-                category = est['transaction']['category']
-                method = est['transaction'].get('categorization_method', 'unknown')
-            else:
-                # Flat structure - transaction fields directly in estimate
-                txn = est
-                category = est.get('category', 'unknown')
-                method = est.get('categorization_method', 'unknown')
-            
+            # Flat transaction structure (all fields at top level)
+            category = est.get('category', 'unknown')
+            method = est.get('categorization_method', 'unknown')
+
             txn_data.append({
-                'Date': txn.get('date', ''),
-                'Description': txn.get('description', ''),
-                'Amount': f"₹{txn.get('amount', 0):,.0f}",
-                'Type': txn.get('type', '').title(),
+                'Date': est.get('date', ''),
+                'Description': est.get('description', ''),
+                'Amount': f"₹{est.get('amount', 0):,.0f}",
+                'Type': est.get('type', '').title(),
                 'Category': category.replace('_', ' ').title(),
                 'Method': method.replace('_', ' ').title(),
                 'CO2 Min': f"{est.get('carbon_kg_min', 0):.3f}",
@@ -698,29 +703,19 @@ For large purchases (electronics, vehicles, property, investments), **activity-b
     # Download options
     st.markdown("---")
     st.subheader("📥 Download Results")
-    
-    col_dl1, col_dl2 = st.columns(2)
-    
+
+    col_dl1, col_dl2, col_dl3 = st.columns(3)
+
     with col_dl1:
         # Download as JSON
-        json_result = {
-            "total_carbon_kg_min": result["total_carbon_kg_min"],
-            "total_carbon_kg_max": result["total_carbon_kg_max"],
-            "total_carbon_kg_avg": result["total_carbon_kg_avg"],
-            "rule_based_count": result.get("rule_based_count", 0),
-            "llm_based_count": result.get("llm_based_count", 0),
-            "category_breakdown": result["category_breakdown"],
-            "monthly_breakdown": result["monthly_breakdown"],
-            "insights": result["insights"],
-            "recommendations": result["recommendations"]
-        }
+        json_report_data = generate_json_report(result)
         st.download_button(
             label="📄 Download JSON Report",
-            data=json.dumps(json_result, indent=2),
+            data=json_report_data,
             file_name="carbon_footprint_report.json",
             mime="application/json"
         )
-    
+
     with col_dl2:
         # Download as text report
         text_report = generate_report(result)
@@ -729,6 +724,16 @@ For large purchases (electronics, vehicles, property, investments), **activity-b
             data=text_report,
             file_name="carbon_footprint_report.txt",
             mime="text/plain"
+        )
+
+    with col_dl3:
+        # Download as CSV (transaction-level export)
+        csv_data = generate_csv_data(result)
+        st.download_button(
+            label="📊 Download CSV (Transactions)",
+            data=csv_data,
+            file_name="carbon_footprint_transactions.csv",
+            mime="text/csv"
         )
 
 else:
@@ -757,18 +762,24 @@ else:
     This hybrid approach is **faster** and **more cost-effective** than pure LLM!
     
     ### Categories Analyzed (with emission factors):
-    
-    | Category | Emission Factor (kg CO2e/₹1000) |
-    |----------|--------------------------------|
-    | 🚗 Transport | 20 - 40 |
-    | 🏠 Housing & Utilities | 10 - 20 |
-    | 🍽️ Food & Groceries | 7 - 15 |
-    | 🛒 Household Appliances | 5 - 10 |
-    | 👕 Clothing & Footwear | 5 - 10 |
-    | 🎭 Recreation & Leisure | 2 - 8 |
-    | 🏥 Healthcare | 3 - 7 |
-    | 📱 Education & Communication | 1 - 5 |
-    | 💰 Financial Services | 1 - 3 |
+
+    """
+    )
+
+    # Generate emission factor table dynamically from patterns.py
+    table_lines = ["| Category | Emission Factor (kg CO2e/₹1000) |",
+                   "|----------|--------------------------------|"]
+    for category, factors in sorted(EMISSION_FACTORS.items(),
+                                     key=lambda x: x[1].get("max", 0),
+                                     reverse=True):
+        display_name = get_category_display_name(category)
+        min_factor = factors.get("min", 0)
+        max_factor = factors.get("max", 0)
+        table_lines.append(f"| {display_name} | {min_factor} - {max_factor} |")
+
+    st.markdown("\n".join(table_lines))
+
+    st.markdown("""
     
     ### Get Started
     

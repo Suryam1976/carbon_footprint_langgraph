@@ -124,25 +124,45 @@ def generate_json_report(result: Dict[str, Any]) -> str:
 
 def generate_csv_data(result: Dict[str, Any]) -> str:
     """
-    Generate CSV data for transaction-level export
+    Generate CSV data for transaction-level export.
+
+    Uses Python's csv module for proper escaping of quotes, newlines, commas.
+    Fixes the prior implementation which only escaped commas naively.
     """
-    csv_lines = []
-    
-    # Header
-    csv_lines.append("Date,Description,Amount,Category,Carbon_Min,Carbon_Max,Carbon_Avg,Method")
-    
-    # Transaction data
+    import csv
+    import io
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header row
+    writer.writerow(
+        [
+            "Date",
+            "Description",
+            "Amount",
+            "Category",
+            "Carbon_Min_kg",
+            "Carbon_Max_kg",
+            "Carbon_Avg_kg",
+            "Categorization_Method",
+        ]
+    )
+
+    # Transaction data rows
     carbon_estimates = result.get("carbon_estimates", [])
     for estimate in carbon_estimates:
-        date = estimate.get("date", "")
-        description = estimate.get("description", "").replace(",", ";")  # Escape commas
-        amount = estimate.get("amount", 0)
-        category = estimate.get("category", "")
-        carbon_min = estimate.get("carbon_kg_min", 0)
-        carbon_max = estimate.get("carbon_kg_max", 0)
-        carbon_avg = estimate.get("carbon_kg_avg", 0)
-        method = estimate.get("categorization_method", "")
-        
-        csv_lines.append(f"{date},{description},{amount},{category},{carbon_min},{carbon_max},{carbon_avg},{method}")
-    
-    return "\n".join(csv_lines)
+        writer.writerow(
+            [
+                estimate.get("date", ""),
+                estimate.get("description", ""),
+                estimate.get("amount", 0),
+                estimate.get("category", ""),
+                estimate.get("carbon_kg_min", 0),
+                estimate.get("carbon_kg_max", 0),
+                estimate.get("carbon_kg_avg", 0),
+                estimate.get("categorization_method", ""),
+            ]
+        )
+
+    return output.getvalue()
