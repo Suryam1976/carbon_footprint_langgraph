@@ -30,6 +30,9 @@ def llm_categorization_node(state: GraphState) -> GraphState:
 
     if not uncategorized:
         logger.debug("No uncategorized transactions to process")
+        # Still need to set categorized_transactions to rule_categorized
+        state["categorized_transactions"] = state.get("rule_categorized", [])
+        state["llm_based_count"] = 0
         state["messages"] = state.get("messages", []) + [
             AIMessage(content="✅ No transactions need LLM categorization")
         ]
