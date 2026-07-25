@@ -7,6 +7,7 @@ PDF → Extract → Redact → Filter → Rule → LLM → Carbon → Aggregate 
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
 
 from langgraph.checkpoint.memory import MemorySaver
@@ -77,7 +78,7 @@ def run_carbon_analysis(pdf_path: str = None, password: str = None,
     Returns:
         Complete analysis results
     """
-    # Create and compile graph
+    # Create and compile graph with LangSmith tracing enabled
     workflow = create_carbon_footprint_graph()
     memory = MemorySaver()
     app = workflow.compile(checkpointer=memory)
@@ -127,7 +128,10 @@ def run_carbon_analysis(pdf_path: str = None, password: str = None,
             "timestamp": datetime.now().isoformat()
         }
     }
-    
+
+    # Ensure LangSmith tracing is explicitly enabled
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+
     result = app.invoke(initial_state, config)
     return result
 
