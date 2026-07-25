@@ -1,11 +1,14 @@
 """Node 3: High-Value Transaction Filter"""
 
 from langchain_core.messages import AIMessage
+from langsmith import traceable
+
 from core.state import GraphState
 
 # Threshold for high-value transactions that need activity-based estimation
 HIGH_VALUE_THRESHOLD = 50000  # ₹50,000
 
+@traceable(name="filter_high_value", run_type="chain")
 def filter_high_value_node(state: GraphState) -> GraphState:
     """
     Node 3: Filter out high-value transactions before categorization

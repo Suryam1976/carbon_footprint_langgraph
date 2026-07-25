@@ -2,9 +2,12 @@
 
 import re
 from langchain_core.messages import AIMessage
+from langsmith import traceable
+
 from core.state import GraphState
 from utils.patterns import categorize_transaction
 
+@traceable(name="rule_based_categorization", run_type="chain")
 def rule_based_categorization_node(state: GraphState) -> GraphState:
     """
     Node 4: Apply rule-based categorization using merchant patterns

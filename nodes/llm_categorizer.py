@@ -11,6 +11,7 @@ import logging
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
+from langsmith import traceable
 
 from core.config import DEFAULT_ANTHROPIC_MODEL, LLM_CATEGORIZATION_BATCH_SIZE
 from core.llm_factory import get_llm
@@ -21,6 +22,7 @@ from utils.patterns import get_all_categories, normalize_category
 logger = logging.getLogger(__name__)
 
 
+@traceable(name="llm_categorization", run_type="chain")
 def llm_categorization_node(state: GraphState) -> GraphState:
     """
     Node 6: Use LLM to categorize remaining uncategorized transactions.

@@ -11,6 +11,7 @@ import logging
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
+from langsmith import traceable
 
 from core.benchmarks import (
     KG_CO2_PER_TREE_PER_YEAR,
@@ -24,6 +25,7 @@ from core.state import GraphState
 logger = logging.getLogger(__name__)
 
 
+@traceable(name="generate_insights", run_type="chain")
 def generate_insights_node(state: GraphState) -> GraphState:
     """
     Node 9: Generate specific, data-driven insights and recommendations

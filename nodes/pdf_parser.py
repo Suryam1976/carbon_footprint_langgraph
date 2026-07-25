@@ -7,9 +7,12 @@ except ImportError:
     fitz = None
 
 from langchain_core.messages import AIMessage
+from langsmith import traceable
+
 from core.state import GraphState
 from utils.sample_data import get_sample_statement_text, get_sample_transactions
 
+@traceable(name="parse_pdf", run_type="chain")
 def parse_pdf_node(state: GraphState) -> GraphState:
     """
     Node 1: Parse PDF bank statement or use sample data

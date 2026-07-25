@@ -16,6 +16,7 @@ import logging
 import re
 
 from langchain_core.messages import AIMessage
+from langsmith import traceable
 
 from core.state import GraphState
 
@@ -47,6 +48,7 @@ def _is_amount_match(matched_digits: str, amount: float) -> bool:
         return False
 
 
+@traceable(name="redact_pii", run_type="chain")
 def redact_pii_node(state: GraphState) -> GraphState:
     """
     Node 3: Redact PII from transactions for DPDP Act compliance.

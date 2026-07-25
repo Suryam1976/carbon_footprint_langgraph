@@ -1,9 +1,12 @@
 """Node 6: Carbon Footprint Estimation"""
 
 from langchain_core.messages import AIMessage
+from langsmith import traceable
+
 from core.state import GraphState
 from utils.patterns import get_emission_factor, normalize_category
 
+@traceable(name="estimate_carbon", run_type="chain")
 def estimate_carbon_node(state: GraphState) -> GraphState:
     """
     Node 6: Calculate carbon footprint for categorized transactions

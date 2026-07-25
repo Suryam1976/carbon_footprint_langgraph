@@ -16,6 +16,7 @@ import re
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
+from langsmith import traceable
 
 from core.exceptions import TransactionExtractionError
 from core.llm_factory import get_llm
@@ -26,6 +27,7 @@ from utils.sample_data import get_sample_transactions
 logger = logging.getLogger(__name__)
 
 
+@traceable(name="extract_transactions", run_type="chain")
 def extract_transactions_node(state: GraphState) -> GraphState:
     """
     Node 2: Extract structured transactions from raw bank statement text.

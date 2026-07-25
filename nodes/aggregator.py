@@ -1,9 +1,12 @@
 """Node 7: Results Aggregation"""
 
 from langchain_core.messages import AIMessage
+from langsmith import traceable
+
 from core.state import GraphState
 from utils.patterns import get_category_display_name
 
+@traceable(name="aggregate_results", run_type="chain")
 def aggregate_results_node(state: GraphState) -> GraphState:
     """
     Node 7: Aggregate carbon footprint results by category
