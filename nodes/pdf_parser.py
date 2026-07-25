@@ -29,6 +29,8 @@ def parse_pdf_node(state: GraphState) -> GraphState:
         state["messages"] = [
             AIMessage(content="📄 Using sample bank statement data for demonstration")
         ]
+        # SECURITY: Clear sensitive password from state
+        state["pdf_password"] = ""
         return state
     
     try:
@@ -61,6 +63,8 @@ def parse_pdf_node(state: GraphState) -> GraphState:
                 state["messages"] = [
                     AIMessage(content=f"📄 Successfully parsed PDF: {pdf_path}")
                 ]
+                # SECURITY: Clear sensitive password from state after successful parsing
+                state["pdf_password"] = ""
                 return state
             else:
                 raise ValueError("No text extracted from PDF - may be scanned/image-based")
@@ -78,5 +82,7 @@ def parse_pdf_node(state: GraphState) -> GraphState:
         state["messages"] = [
             AIMessage(content=f"⚠️ PDF parsing failed, using sample data. Error: {str(e)}")
         ]
-    
+
+    # SECURITY: Clear sensitive password from state after use
+    state["pdf_password"] = ""
     return state

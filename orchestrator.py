@@ -84,9 +84,10 @@ def run_carbon_analysis(pdf_path: str = None, password: str = None,
     app = workflow.compile(checkpointer=memory)
     
     # Initialize state
+    # NOTE: pdf_password is sensitive — only pass to pdf_parser node, don't store in state
     initial_state = {
         "pdf_path": pdf_path or "",
-        "pdf_password": password or "",
+        "pdf_password": password or "",  # Will be cleared after pdf_parser node
         "llm_provider": llm_provider,
         "llm_model": llm_model or "",
         "bank_type": "",
